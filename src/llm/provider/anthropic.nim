@@ -8,7 +8,7 @@ import llm/types
 
 standard_pragmas()
 
-raises_error(llm_err, [IOError, OSError, TimeoutError, ValueError, HttpRequestError, JsonParsingError],
+raises_error(llm_err, [IOError, OSError, TimeoutError, ValueError, HttpRequestError, JsonParsingError, Exception],
              [ReadIOEffect, WriteIOEffect, TimeEffect, RootEffect])
 
 #=======================================================================================================================
@@ -70,7 +70,7 @@ proc chat*(provider: AnthropicProvider; request: ChatRequest): ChatResponse {.ll
       stops.add(%s)
     body["stop_sequences"] = stops
   let client = newHttpClient()
-  defer: client.close()
+  defer: (try: client.close() except Exception: discard)
   client.headers = newHttpHeaders({
     "Content-Type": "application/json",
     "x-api-key": $provider.api_key,

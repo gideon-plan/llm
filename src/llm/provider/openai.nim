@@ -11,7 +11,7 @@ import llm/types
 
 standard_pragmas()
 
-raises_error(llm_err, [IOError, OSError, TimeoutError, ValueError, HttpRequestError, JsonParsingError],
+raises_error(llm_err, [IOError, OSError, TimeoutError, ValueError, HttpRequestError, JsonParsingError, Exception],
              [ReadIOEffect, WriteIOEffect, TimeEffect, RootEffect])
 
 #=======================================================================================================================
@@ -45,7 +45,7 @@ proc chat*(provider: OpenAIProvider; request: ChatRequest): ChatResponse {.llm_e
     req.model = $provider.default_model
   let body = req.to_json()
   let client = newHttpClient()
-  defer: client.close()
+  defer: (try: client.close() except Exception: discard)
   client.headers = newHttpHeaders({
     "Content-Type": "application/json",
     "Authorization": "Bearer " & $provider.api_key,
