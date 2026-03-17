@@ -5,6 +5,7 @@ import std/httpclient
 import std/net
 
 import basis/code/throw
+import basis/code/maybe
 
 import llm/types
 import llm/provider/openai
@@ -93,3 +94,24 @@ proc complete*(client: LLMClient; prompt: string;
   ## Single-turn completion: send a user prompt, return the response content.
   let resp = client.chat(@[user_msg(prompt)], model, temperature, max_tokens)
   resp.content
+
+# -----------------------------------------------------------------------
+# Maybe overloads (non-raising)
+# -----------------------------------------------------------------------
+
+proc try_chat*(client: LLMClient; request: ChatRequest): Maybe[ChatResponse, ref LLMError] {.llm_err.} =
+  ## Chat returning Maybe instead of raising.
+  try:
+    Maybe[ChatResponse, ref LLMError].yes(client.chat(request))
+  except LLMError as e:
+    Maybe[ChatResponse, ref LLMError].no(e)
+
+proc try_complete*(client: LLMClient; prompt: string;
+                   model: string = "";
+                   temperature: float = 0.7;
+                   max_tokens: int = 1024): Maybe[string, ref LLMError] {.llm_err.} =
+  ## Single-turn completion returning Maybe instead of raising.
+  try:
+    Maybe[string, ref LLMError].yes(client.complete(prompt, model, temperature, max_tokens))
+  except LLMError as e:
+    Maybe[string, ref LLMError].no(e)
