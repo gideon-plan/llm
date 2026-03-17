@@ -17,17 +17,17 @@ standard_pragmas()
 raises_error(llm_err, [IOError, OSError, TimeoutError, ValueError, HttpRequestError, JsonParsingError, LLMError],
              [ReadIOEffect, WriteIOEffect, TimeEffect, RootEffect])
 
-# -----------------------------------------------------------------------
-# Types
-# -----------------------------------------------------------------------
+#=======================================================================================================================
+#== TYPES ==============================================================================================================
+#=======================================================================================================================
 
 type
-  ProviderKind* = enum
+  ProviderKind* = enum ## Supported LLM provider backends.
     pkOpenAI
     pkAnthropic
     pkOllama
 
-  LLMClient* = object
+  LLMClient* = object ## Vendor-neutral LLM client.
     case kind*: ProviderKind
     of pkOpenAI:
       openai*: OpenAIProvider
@@ -36,22 +36,25 @@ type
     of pkOllama:
       ollama*: OllamaProvider
 
-# -----------------------------------------------------------------------
-# Constructors
-# -----------------------------------------------------------------------
+#=======================================================================================================================
+#== CONSTRUCTORS =======================================================================================================
+#=======================================================================================================================
 
+## Create an OpenAI client.
 proc new_openai_client*(api_key: ApiKey;
                         model: ModelName = ModelName("gpt-4o");
                         base_url: BaseUrl = BaseUrl("https://api.openai.com/v1")): LLMClient {.ok.} =
   LLMClient(kind: pkOpenAI,
             openai: new_openai_provider(api_key, model, base_url))
 
+## Create an Anthropic client.
 proc new_anthropic_client*(api_key: ApiKey;
                            model: ModelName = ModelName("claude-sonnet-4-6");
                            base_url: BaseUrl = BaseUrl("https://api.anthropic.com/v1")): LLMClient {.ok.} =
   LLMClient(kind: pkAnthropic,
             anthropic_provider: new_anthropic_provider(api_key, model, base_url))
 
+## Create an Ollama client.
 proc new_ollama_client*(model: ModelName = ModelName("llama3.2:1b");
                         base_url: BaseUrl = BaseUrl("http://localhost:11434/v1")): LLMClient {.ok.} =
   LLMClient(kind: pkOllama,
@@ -62,9 +65,9 @@ proc new_custom_client*(base_url: BaseUrl; api_key: ApiKey; model: ModelName): L
   LLMClient(kind: pkOpenAI,
             openai: new_openai_provider(api_key, model, base_url))
 
-# -----------------------------------------------------------------------
-# Chat
-# -----------------------------------------------------------------------
+#=======================================================================================================================
+#== CHAT ===============================================================================================================
+#=======================================================================================================================
 
 proc chat*(client: LLMClient; request: ChatRequest): ChatResponse {.llm_err.} =
   ## Send a chat completion request to the configured provider.
@@ -83,9 +86,9 @@ proc chat*(client: LLMClient; messages: seq[Message];
   ## Convenience: chat with a list of messages.
   client.chat(chat_request(model, messages, temperature, max_tokens))
 
-# -----------------------------------------------------------------------
-# Complete (single-turn convenience)
-# -----------------------------------------------------------------------
+#=======================================================================================================================
+#== COMPLETE (SINGLE-TURN CONVENIENCE) =================================================================================
+#=======================================================================================================================
 
 proc complete*(client: LLMClient; prompt: string;
                model: string = "";
@@ -95,9 +98,9 @@ proc complete*(client: LLMClient; prompt: string;
   let resp = client.chat(@[user_msg(prompt)], model, temperature, max_tokens)
   resp.content
 
-# -----------------------------------------------------------------------
-# Maybe overloads (non-raising)
-# -----------------------------------------------------------------------
+#=======================================================================================================================
+#== MAYBE OVERLOADS (NON-RAISING) ======================================================================================
+#=======================================================================================================================
 
 proc try_chat*(client: LLMClient; request: ChatRequest): Maybe[ChatResponse, ref LLMError] {.llm_err.} =
   ## Chat returning Maybe instead of raising.
