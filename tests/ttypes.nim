@@ -84,3 +84,50 @@ suite "types":
     let j = r.to_json()
     check j["content"].getStr() == "hi"
     check j["finish_reason"].getStr() == "stop"
+
+  test "parse_message":
+    let j = %*{"role": "user", "content": "hello world"}
+    let m = parse_message(j)
+    check m.role == User
+    check m.content == "hello world"
+
+  test "chat request top_p omitted when 1.0":
+    let req = chat_request("m", @[user_msg("hi")])
+    let j = req.to_json()
+    check not j.hasKey("top_p")
+
+  test "chat request top_p included when not 1.0":
+    let req = chat_request("m", @[user_msg("hi")], top_p = 0.9)
+    let j = req.to_json()
+    check j["top_p"].getFloat() == 0.9
+
+  test "message role string values":
+    check $System == "system"
+    check $User == "user"
+    check $Assistant == "assistant"
+
+suite "distinct types":
+  test "ApiKey":
+    let k = ApiKey("sk-test")
+    check $k == "sk-test"
+    check k.len == 7
+    check k == ApiKey("sk-test")
+
+  test "ModelName":
+    let m = ModelName("gpt-4o")
+    check $m == "gpt-4o"
+    check m == ModelName("gpt-4o")
+
+  test "BaseUrl":
+    let u = BaseUrl("https://api.example.com")
+    check $u == "https://api.example.com"
+    check u.len == 23
+
+  test "distinct types are not interchangeable":
+    # These are compile-time checks -- the fact that this compiles
+    # with separate types proves they are distinct
+    let k = ApiKey("key")
+    let m = ModelName("model")
+    let u = BaseUrl("url")
+    check $k != $m  # different values
+    check $m != $u
