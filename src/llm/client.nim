@@ -39,24 +39,24 @@ type
 # Constructors
 # -----------------------------------------------------------------------
 
-proc new_openai_client*(api_key: string;
-                        model: string = "gpt-4o";
-                        base_url: string = "https://api.openai.com/v1"): LLMClient {.ok.} =
+proc new_openai_client*(api_key: ApiKey;
+                        model: ModelName = ModelName("gpt-4o");
+                        base_url: BaseUrl = BaseUrl("https://api.openai.com/v1")): LLMClient {.ok.} =
   LLMClient(kind: pkOpenAI,
             openai: new_openai_provider(api_key, model, base_url))
 
-proc new_anthropic_client*(api_key: string;
-                           model: string = "claude-sonnet-4-6";
-                           base_url: string = "https://api.anthropic.com/v1"): LLMClient {.ok.} =
+proc new_anthropic_client*(api_key: ApiKey;
+                           model: ModelName = ModelName("claude-sonnet-4-6");
+                           base_url: BaseUrl = BaseUrl("https://api.anthropic.com/v1")): LLMClient {.ok.} =
   LLMClient(kind: pkAnthropic,
             anthropic_provider: new_anthropic_provider(api_key, model, base_url))
 
-proc new_ollama_client*(model: string = "llama3.2:1b";
-                        base_url: string = "http://localhost:11434/v1"): LLMClient {.ok.} =
+proc new_ollama_client*(model: ModelName = ModelName("llama3.2:1b");
+                        base_url: BaseUrl = BaseUrl("http://localhost:11434/v1")): LLMClient {.ok.} =
   LLMClient(kind: pkOllama,
             ollama: new_ollama_provider(model, base_url))
 
-proc new_custom_client*(base_url, api_key, model: string): LLMClient {.ok.} =
+proc new_custom_client*(base_url: BaseUrl; api_key: ApiKey; model: ModelName): LLMClient {.ok.} =
   ## Create a client for any OpenAI-compatible endpoint.
   LLMClient(kind: pkOpenAI,
             openai: new_openai_provider(api_key, model, base_url))

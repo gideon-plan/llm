@@ -13,6 +13,21 @@ raises_error(llm_err, [IOError, ValueError], [])
 # -----------------------------------------------------------------------
 
 type
+  ApiKey* = distinct string
+  ModelName* = distinct string
+  BaseUrl* = distinct string
+
+func `$`*(v: ApiKey): string {.borrow.}
+func `$`*(v: ModelName): string {.borrow.}
+func `$`*(v: BaseUrl): string {.borrow.}
+func `==`*(a, b: ApiKey): bool {.borrow.}
+func `==`*(a, b: ModelName): bool {.borrow.}
+func `==`*(a, b: BaseUrl): bool {.borrow.}
+func len*(v: ApiKey): int {.borrow.}
+func len*(v: ModelName): int {.borrow.}
+func len*(v: BaseUrl): int {.borrow.}
+
+type
   LLMError* = object of IOError
     ## LLM provider error.
     status_code*: int

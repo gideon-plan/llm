@@ -26,9 +26,9 @@ type
 # Constructor
 # -----------------------------------------------------------------------
 
-proc new_ollama_provider*(model: string = "llama3.2:1b";
-                          base_url: string = "http://localhost:11434/v1"): OllamaProvider {.ok.} =
-  OllamaProvider(inner: new_openai_provider(api_key = "", model = model, base_url = base_url))
+proc new_ollama_provider*(model: ModelName = ModelName("llama3.2:1b");
+                          base_url: BaseUrl = BaseUrl("http://localhost:11434/v1")): OllamaProvider {.ok.} =
+  OllamaProvider(inner: new_openai_provider(api_key = ApiKey(""), model = model, base_url = base_url))
 
 # -----------------------------------------------------------------------
 # Chat

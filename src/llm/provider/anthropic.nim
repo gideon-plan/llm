@@ -20,18 +20,18 @@ raises_error(llm_err, [IOError, OSError, TimeoutError, ValueError, HttpRequestEr
 
 type
   AnthropicProvider* = object
-    base_url*: string
-    api_key*: string
-    default_model*: string
+    base_url*: BaseUrl
+    api_key*: ApiKey
+    default_model*: ModelName
     anthropic_version*: string
 
 # -----------------------------------------------------------------------
 # Constructor
 # -----------------------------------------------------------------------
 
-proc new_anthropic_provider*(api_key: string;
-                             model: string = "claude-sonnet-4-6";
-                             base_url: string = "https://api.anthropic.com/v1";
+proc new_anthropic_provider*(api_key: ApiKey;
+                             model: ModelName = ModelName("claude-sonnet-4-6");
+                             base_url: BaseUrl = BaseUrl("https://api.anthropic.com/v1");
                              version: string = "2023-06-01"): AnthropicProvider {.ok.} =
   AnthropicProvider(
     base_url: base_url, api_key: api_key,
@@ -46,7 +46,7 @@ proc chat*(provider: AnthropicProvider; request: ChatRequest): ChatResponse {.ll
   ## Send a chat completion request via Anthropic Messages API.
   var model = request.model
   if model.len == 0:
-    model = provider.default_model
+    model = $provider.default_model
   # Extract system message (Anthropic uses a separate "system" field)
   var system_text = ""
   var msgs = newJArray()
@@ -75,10 +75,10 @@ proc chat*(provider: AnthropicProvider; request: ChatRequest): ChatResponse {.ll
   defer: client.close()
   client.headers = newHttpHeaders({
     "Content-Type": "application/json",
-    "x-api-key": provider.api_key,
+    "x-api-key": $provider.api_key,
     "anthropic-version": provider.anthropic_version,
   })
-  let url = provider.base_url.strip(trailing = true, chars = {'/'}) & "/messages"
+  let url = ($provider.base_url).strip(trailing = true, chars = {'/'}) & "/messages"
   let resp = client.request(url, httpMethod = HttpPost, body = $body)
   let code = resp.code.int
   let resp_body = resp.body

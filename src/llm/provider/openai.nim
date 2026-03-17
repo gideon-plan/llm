@@ -23,17 +23,17 @@ raises_error(llm_err, [IOError, OSError, TimeoutError, ValueError, HttpRequestEr
 
 type
   OpenAIProvider* = object
-    base_url*: string
-    api_key*: string
-    default_model*: string
+    base_url*: BaseUrl
+    api_key*: ApiKey
+    default_model*: ModelName
 
 # -----------------------------------------------------------------------
 # Constructor
 # -----------------------------------------------------------------------
 
-proc new_openai_provider*(api_key: string;
-                          model: string = "gpt-4o";
-                          base_url: string = "https://api.openai.com/v1"): OpenAIProvider {.ok.} =
+proc new_openai_provider*(api_key: ApiKey;
+                          model: ModelName = ModelName("gpt-4o");
+                          base_url: BaseUrl = BaseUrl("https://api.openai.com/v1")): OpenAIProvider {.ok.} =
   OpenAIProvider(base_url: base_url, api_key: api_key, default_model: model)
 
 # -----------------------------------------------------------------------
@@ -44,15 +44,15 @@ proc chat*(provider: OpenAIProvider; request: ChatRequest): ChatResponse {.llm_e
   ## Send a chat completion request.
   var req = request
   if req.model.len == 0:
-    req.model = provider.default_model
+    req.model = $provider.default_model
   let body = req.to_json()
   let client = newHttpClient()
   defer: client.close()
   client.headers = newHttpHeaders({
     "Content-Type": "application/json",
-    "Authorization": "Bearer " & provider.api_key,
+    "Authorization": "Bearer " & $provider.api_key,
   })
-  let url = provider.base_url.strip(trailing = true, chars = {'/'}) & "/chat/completions"
+  let url = ($provider.base_url).strip(trailing = true, chars = {'/'}) & "/chat/completions"
   let resp = client.request(url, httpMethod = HttpPost, body = $body)
   let code = resp.code.int
   let resp_body = resp.body
