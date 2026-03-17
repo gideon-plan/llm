@@ -3,10 +3,7 @@
 ## Works with OpenAI, Ollama, vLLM, Together, Groq, llama-server,
 ## and any other endpoint implementing the OpenAI chat completions API.
 
-import std/json
-import std/httpclient
-import std/net
-import std/strutils
+import std/[json, httpclient, net, strutils]
 
 import basis/code/throw
 

@@ -1,8 +1,6 @@
 ## Ollama provider -- thin wrapper around OpenAI-compatible provider.
 
-import std/json
-import std/httpclient
-import std/net
+import std/[json, httpclient, net]
 
 import basis/code/throw
 

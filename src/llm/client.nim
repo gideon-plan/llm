@@ -1,8 +1,6 @@
 ## LLM client facade -- vendor-neutral entry point.
 
-import std/json
-import std/httpclient
-import std/net
+import std/[json, httpclient, net]
 
 import basis/code/throw
 import basis/code/maybe

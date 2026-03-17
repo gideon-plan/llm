@@ -1,7 +1,6 @@
 ## Unit tests for LLM types and JSON serialization.
 
-import std/json
-import std/unittest
+import std/[json, unittest]
 
 import llm/types
 
