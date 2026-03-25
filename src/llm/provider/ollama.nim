@@ -1,6 +1,6 @@
 ## Ollama provider -- thin wrapper around OpenAI-compatible provider.
 
-import std/[json, httpclient, net]
+import std/json
 
 import basis/code/throw
 
@@ -9,7 +9,7 @@ import llm/provider/openai
 
 standard_pragmas()
 
-raises_error(llm_err, [IOError, OSError, TimeoutError, ValueError, HttpRequestError, JsonParsingError, Exception],
+raises_error(llm_err, [IOError, OSError, ValueError, JsonParsingError, Exception],
              [ReadIOEffect, WriteIOEffect, TimeEffect, RootEffect])
 
 #=======================================================================================================================

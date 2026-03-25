@@ -1,6 +1,6 @@
 ## LLM client facade -- vendor-neutral entry point.
 
-import std/[json, httpclient, net]
+import std/json
 
 import basis/code/throw
 import basis/code/choice
@@ -12,7 +12,7 @@ import llm/provider/ollama
 
 standard_pragmas()
 
-raises_error(llm_err, [IOError, OSError, TimeoutError, ValueError, HttpRequestError, JsonParsingError, LLMError, Exception],
+raises_error(llm_err, [IOError, OSError, ValueError, JsonParsingError, LLMError, Exception],
              [ReadIOEffect, WriteIOEffect, TimeEffect, RootEffect])
 
 #=======================================================================================================================

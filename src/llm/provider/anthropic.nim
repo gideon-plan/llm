@@ -1,14 +1,16 @@
 ## Anthropic Messages API provider.
 
-import std/[json, httpclient, net, strutils]
+import std/[json, strutils]
 
 import basis/code/throw
+import basis/code/choice
 
 import llm/types
+import httpc/curl_client
 
 standard_pragmas()
 
-raises_error(llm_err, [IOError, OSError, TimeoutError, ValueError, HttpRequestError, JsonParsingError, Exception],
+raises_error(llm_err, [IOError, OSError, ValueError, JsonParsingError, Exception],
              [ReadIOEffect, WriteIOEffect, TimeEffect, RootEffect])
 
 #=======================================================================================================================
@@ -45,7 +47,6 @@ proc chat*(provider: AnthropicProvider; request: ChatRequest): ChatResponse {.ll
   var model = request.model
   if model.len == 0:
     model = $provider.default_model
-  # Extract system message (Anthropic uses a separate "system" field)
   var system_text = ""
   var msgs = newJArray()
   for m in request.messages:
@@ -69,23 +70,37 @@ proc chat*(provider: AnthropicProvider; request: ChatRequest): ChatResponse {.ll
     for s in request.stop:
       stops.add(%s)
     body["stop_sequences"] = stops
-  let client = newHttpClient()
-  defer: (try: client.close() except Exception: discard)
-  client.headers = newHttpHeaders({
-    "Content-Type": "application/json",
-    "x-api-key": $provider.api_key,
-    "anthropic-version": provider.anthropic_version,
-  })
+
   let url = ($provider.base_url).strip(trailing = true, chars = {'/'}) & "/messages"
-  let resp = client.request(url, httpMethod = HttpPost, body = $body)
-  let code = resp.code.int
-  let resp_body = resp.body
+  let headers = @[
+    ("Content-Type", "application/json"),
+    ("x-api-key", $provider.api_key),
+    ("anthropic-version", provider.anthropic_version),
+  ]
+
+  let cc_r = init_curl_client()
+  if cc_r.is_bad:
+    raise newException(LLMError, "failed to init HTTP client")
+  var cc = cc_r.val
+  defer: cc.close()
+
+  let resp = cc.request(HttpRequest(
+    url: url,
+    meth: hmPost,
+    headers: headers,
+    body: $body,
+    timeout: 120,
+  ))
+  if resp.is_bad:
+    raise newException(LLMError, "HTTP request failed: " & resp.err.msg)
+
+  let code = resp.val.status
+  let resp_body = resp.val.body
   if code < 200 or code >= 300:
     var err = newException(LLMError, "HTTP " & $code & ": " & resp_body)
     err.status_code = code
     raise err
   let j = parseJson(resp_body)
-  # Extract content from content blocks
   var content = ""
   if j.hasKey("content"):
     for item in j["content"]:
