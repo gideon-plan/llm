@@ -3,7 +3,7 @@
 import std/[json, httpclient, net]
 
 import basis/code/throw
-import basis/code/maybe
+import basis/code/choice
 
 import llm/types
 import llm/provider/openai
@@ -100,19 +100,19 @@ proc complete*(client: LLMClient; prompt: string;
 #== MAYBE OVERLOADS (NON-RAISING) ======================================================================================
 #=======================================================================================================================
 
-proc try_chat*(client: LLMClient; request: ChatRequest): Maybe[ChatResponse, ref LLMError] {.llm_err.} =
+proc try_chat*(client: LLMClient; request: ChatRequest): Choice[ChatResponse] {.llm_err.} =
   ## Chat returning Maybe instead of raising.
   try:
-    Maybe[ChatResponse, ref LLMError].yes(client.chat(request))
+    good(client.chat(request))
   except LLMError as e:
-    Maybe[ChatResponse, ref LLMError].no(e)
+    bad[ChatResponse]("llm", e.msg)
 
 proc try_complete*(client: LLMClient; prompt: string;
                    model: string = "";
                    temperature: float = 0.7;
-                   max_tokens: int = 1024): Maybe[string, ref LLMError] {.llm_err.} =
+                   max_tokens: int = 1024): Choice[string] {.llm_err.} =
   ## Single-turn completion returning Maybe instead of raising.
   try:
-    Maybe[string, ref LLMError].yes(client.complete(prompt, model, temperature, max_tokens))
+    good(client.complete(prompt, model, temperature, max_tokens))
   except LLMError as e:
-    Maybe[string, ref LLMError].no(e)
+    bad[string]("llm", e.msg)
