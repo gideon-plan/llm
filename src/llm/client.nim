@@ -1,3 +1,4 @@
+{.experimental: "strictFuncs".}
 ## LLM client facade -- vendor-neutral entry point.
 
 import std/json

@@ -1,3 +1,4 @@
+{.experimental: "strictFuncs".}
 ## Common types for the LLM client.
 
 import std/json

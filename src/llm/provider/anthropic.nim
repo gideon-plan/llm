@@ -1,3 +1,4 @@
+{.experimental: "strictFuncs".}
 ## Anthropic Messages API provider.
 
 import std/[json, strutils]

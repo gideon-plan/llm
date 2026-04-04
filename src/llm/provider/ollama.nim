@@ -1,3 +1,4 @@
+{.experimental: "strictFuncs".}
 ## Ollama provider -- thin wrapper around OpenAI-compatible provider.
 
 import std/json

@@ -1,3 +1,4 @@
+{.experimental: "strictFuncs".}
 ## Unit tests for LLM types and JSON serialization.
 
 import std/[json, unittest]

@@ -1,3 +1,4 @@
+{.experimental: "strictFuncs".}
 ## Integration test for Ollama provider (requires local Ollama running).
 
 import std/unittest

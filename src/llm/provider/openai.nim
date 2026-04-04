@@ -1,3 +1,4 @@
+{.experimental: "strictFuncs".}
 ## OpenAI-compatible provider.
 ##
 ## Works with OpenAI, Ollama, vLLM, Together, Groq, llama-server,
