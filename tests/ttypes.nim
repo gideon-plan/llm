@@ -1,7 +1,8 @@
 {.experimental: "strictFuncs".}
 ## Unit tests for LLM types and JSON serialization.
 
-import std/[json, unittest]
+import std/[unittest, strutils]
+import jsony
 
 import llm/types
 
@@ -24,34 +25,41 @@ suite "types":
     check req.top_p == 1.0
     check req.stop.len == 0
 
-  test "message to_json":
+  test "message toJson":
     let m = user_msg("hello")
-    let j = m.to_json()
-    check j["role"].getStr() == "user"
-    check j["content"].getStr() == "hello"
+    let j = m.toJson()
+    check j.contains("\"role\":\"user\"")
+    check j.contains("\"content\":\"hello\"")
 
-  test "chat request to_json":
+  test "message roundtrip":
+    let m = user_msg("hello world")
+    let j = m.toJson()
+    let m2 = fromJson(j, Message)
+    check m2.role == User
+    check m2.content == "hello world"
+
+  test "chat request toJson":
     let req = chat_request("test-model", @[
       system_msg("be terse"),
       user_msg("what is 2+2"),
     ], temperature = 0.5, max_tokens = 100)
-    let j = req.to_json()
-    check j["model"].getStr() == "test-model"
-    check j["messages"].len == 2
-    check j["temperature"].getFloat() == 0.5
-    check j["max_tokens"].getInt() == 100
+    let j = req.toJson()
+    check j.contains("\"model\":\"test-model\"")
+    check j.contains("\"temperature\":0.5")
+    check j.contains("\"max_tokens\":100")
 
   test "chat request with stop sequences":
     let req = chat_request("m", @[user_msg("hi")], stop = @["END", "STOP"])
-    let j = req.to_json()
-    check j["stop"].len == 2
-    check j["stop"][0].getStr() == "END"
+    let j = req.toJson()
+    check j.contains("\"END\"")
+    check j.contains("\"STOP\"")
 
-  test "usage to_json":
+  test "usage roundtrip":
     let u = Usage(prompt_tokens: 10, completion_tokens: 20, total_tokens: 30)
-    let j = u.to_json()
-    check j["prompt_tokens"].getInt() == 10
-    check j["total_tokens"].getInt() == 30
+    let j = u.toJson()
+    let u2 = fromJson(j, Usage)
+    check u2.prompt_tokens == 10
+    check u2.total_tokens == 30
 
   test "parse_role":
     check parse_role("system") == System
@@ -66,40 +74,12 @@ suite "types":
       caught = true
     check caught
 
-  test "parse_usage":
-    let j = %*{"prompt_tokens": 5, "completion_tokens": 10, "total_tokens": 15}
-    let u = parse_usage(j)
-    check u.prompt_tokens == 5
-    check u.completion_tokens == 10
-    check u.total_tokens == 15
-
-  test "parse_usage missing fields":
-    let j = %*{}
-    let u = parse_usage(j)
-    check u.prompt_tokens == 0
-    check u.total_tokens == 0
-
-  test "response to_json":
+  test "response roundtrip":
     let r = ChatResponse(content: "hi", model: "m", usage: Usage(), finish_reason: "stop")
-    let j = r.to_json()
-    check j["content"].getStr() == "hi"
-    check j["finish_reason"].getStr() == "stop"
-
-  test "parse_message":
-    let j = %*{"role": "user", "content": "hello world"}
-    let m = parse_message(j)
-    check m.role == User
-    check m.content == "hello world"
-
-  test "chat request top_p omitted when 1.0":
-    let req = chat_request("m", @[user_msg("hi")])
-    let j = req.to_json()
-    check not j.hasKey("top_p")
-
-  test "chat request top_p included when not 1.0":
-    let req = chat_request("m", @[user_msg("hi")], top_p = 0.9)
-    let j = req.to_json()
-    check j["top_p"].getFloat() == 0.9
+    let j = r.toJson()
+    let r2 = fromJson(j, ChatResponse)
+    check r2.content == "hi"
+    check r2.finish_reason == "stop"
 
   test "message role string values":
     check $System == "system"

@@ -1,7 +1,8 @@
 {.experimental: "strictFuncs".}
 ## Anthropic Messages API provider.
 
-import std/[json, strutils]
+import std/strutils
+import jsony
 
 import basis/code/throw
 import basis/code/choice
@@ -11,7 +12,7 @@ import httpc/curl_client
 
 standard_pragmas()
 
-raises_error(llm_err, [IOError, OSError, ValueError, JsonParsingError, Exception],
+raises_error(llm_err, [IOError, OSError, ValueError, Exception],
              [ReadIOEffect, WriteIOEffect, TimeEffect, RootEffect])
 
 #=======================================================================================================================
@@ -24,6 +25,61 @@ type
     api_key*: ApiKey
     default_model*: ModelName
     anthropic_version*: string
+
+type
+  AnthropicMessage = object
+    role: string
+    content: string
+
+  AnthropicRequest = object
+    model: string
+    messages: seq[AnthropicMessage]
+    max_tokens: int
+    system: string
+    temperature: float
+    top_p: float
+    stop_sequences: seq[string]
+
+  AnthropicContentBlock = object
+    `type`: string
+    text: string
+
+  AnthropicUsage = object
+    input_tokens: int
+    output_tokens: int
+
+  AnthropicResponse = object
+    model: string
+    stop_reason: string
+    content: seq[AnthropicContentBlock]
+    usage: AnthropicUsage
+
+#=======================================================================================================================
+#== SERIALIZATION ======================================================================================================
+#=======================================================================================================================
+
+proc dumpHook*(s: var string; v: AnthropicRequest) =
+  ## Custom serialization: omit optional fields when at default values.
+  s.add '{'
+  s.add "\"model\":"
+  s.dumpHook(v.model)
+  s.add ",\"messages\":"
+  s.dumpHook(v.messages)
+  s.add ",\"max_tokens\":"
+  s.dumpHook(v.max_tokens)
+  if v.system.len > 0:
+    s.add ",\"system\":"
+    s.dumpHook(v.system)
+  if v.temperature != 0.7:
+    s.add ",\"temperature\":"
+    s.dumpHook(v.temperature)
+  if v.top_p != 1.0:
+    s.add ",\"top_p\":"
+    s.dumpHook(v.top_p)
+  if v.stop_sequences.len > 0:
+    s.add ",\"stop_sequences\":"
+    s.dumpHook(v.stop_sequences)
+  s.add '}'
 
 #=======================================================================================================================
 #== CONSTRUCTOR ========================================================================================================
@@ -49,28 +105,22 @@ proc chat*(provider: AnthropicProvider; request: ChatRequest): ChatResponse {.ll
   if model.len == 0:
     model = $provider.default_model
   var system_text = ""
-  var msgs = newJArray()
+  var msgs: seq[AnthropicMessage]
   for m in request.messages:
     if m.role == System:
       system_text = m.content
     else:
-      msgs.add(%*{"role": $m.role, "content": m.content})
-  var body = %*{
-    "model": model,
-    "messages": msgs,
-    "max_tokens": request.max_tokens,
-  }
-  if system_text.len > 0:
-    body["system"] = %system_text
-  if request.temperature != 0.7:
-    body["temperature"] = %request.temperature
-  if request.top_p != 1.0:
-    body["top_p"] = %request.top_p
-  if request.stop.len > 0:
-    var stops = newJArray()
-    for s in request.stop:
-      stops.add(%s)
-    body["stop_sequences"] = stops
+      msgs.add(AnthropicMessage(role: $m.role, content: m.content))
+  let ar = AnthropicRequest(
+    model: model,
+    messages: msgs,
+    max_tokens: request.max_tokens,
+    system: system_text,
+    temperature: request.temperature,
+    top_p: request.top_p,
+    stop_sequences: request.stop,
+  )
+  let body = ar.toJson()
 
   let url = ($provider.base_url).strip(trailing = true, chars = {'/'}) & "/messages"
   let headers = @[
@@ -89,7 +139,7 @@ proc chat*(provider: AnthropicProvider; request: ChatRequest): ChatResponse {.ll
     url: url,
     meth: hmPost,
     headers: headers,
-    body: $body,
+    body: body,
     timeout: 120,
   ))
   if resp.is_bad:
@@ -101,24 +151,21 @@ proc chat*(provider: AnthropicProvider; request: ChatRequest): ChatResponse {.ll
     var err = newException(LLMError, "HTTP " & $code & ": " & resp_body)
     err.status_code = code
     raise err
-  let j = parseJson(resp_body)
+
+  let r = fromJson(resp_body, AnthropicResponse)
   var content = ""
-  if j.hasKey("content"):
-    for item in j["content"]:
-      if item.getOrDefault("type").getStr() == "text":
-        content.add(item["text"].getStr())
-  let usage = if j.hasKey("usage"):
-    Usage(
-      prompt_tokens: j["usage"].getOrDefault("input_tokens").getInt(0),
-      completion_tokens: j["usage"].getOrDefault("output_tokens").getInt(0),
-      total_tokens: j["usage"].getOrDefault("input_tokens").getInt(0) +
-                    j["usage"].getOrDefault("output_tokens").getInt(0),
-    )
-  else:
-    Usage()
+  for item in r.content:
+    if item.`type` == "text":
+      content.add(item.text)
+  let resp_model = if r.model.len > 0: r.model else: model
+  let stop_reason = if r.stop_reason.len > 0: r.stop_reason else: "end_turn"
   ChatResponse(
     content: content,
-    model: j.getOrDefault("model").getStr(model),
-    usage: usage,
-    finish_reason: j.getOrDefault("stop_reason").getStr("end_turn"),
+    model: resp_model,
+    usage: Usage(
+      prompt_tokens: r.usage.input_tokens,
+      completion_tokens: r.usage.output_tokens,
+      total_tokens: r.usage.input_tokens + r.usage.output_tokens,
+    ),
+    finish_reason: stop_reason,
   )

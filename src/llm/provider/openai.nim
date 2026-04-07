@@ -4,7 +4,8 @@
 ## Works with OpenAI, Ollama, vLLM, Together, Groq, llama-server,
 ## and any other endpoint implementing the OpenAI chat completions API.
 
-import std/[json, strutils]
+import std/strutils
+import jsony
 
 import basis/code/throw
 import basis/code/choice
@@ -14,7 +15,7 @@ import httpc/curl_client
 
 standard_pragmas()
 
-raises_error(llm_err, [IOError, OSError, ValueError, JsonParsingError, Exception],
+raises_error(llm_err, [IOError, OSError, ValueError, Exception],
              [ReadIOEffect, WriteIOEffect, TimeEffect, RootEffect])
 
 #=======================================================================================================================
@@ -26,6 +27,25 @@ type
     base_url*: BaseUrl
     api_key*: ApiKey
     default_model*: ModelName
+
+type
+  OAIRespMessage = object
+    content: string
+    reasoning: string
+
+  OAIChoice = object
+    message: OAIRespMessage
+    finish_reason: string
+
+  OAIUsage = object
+    prompt_tokens: int
+    completion_tokens: int
+    total_tokens: int
+
+  OAIResponse = object
+    model: string
+    choices: seq[OAIChoice]
+    usage: OAIUsage
 
 #=======================================================================================================================
 #== CONSTRUCTOR ========================================================================================================
@@ -46,7 +66,7 @@ proc chat*(provider: OpenAIProvider; request: ChatRequest): ChatResponse {.llm_e
   var req = request
   if req.model.len == 0:
     req.model = $provider.default_model
-  let body = $req.to_json()
+  let body = req.toJson()
   let url = ($provider.base_url).strip(trailing = true, chars = {'/'}) & "/chat/completions"
   let headers = @[
     ("Content-Type", "application/json"),
@@ -75,20 +95,23 @@ proc chat*(provider: OpenAIProvider; request: ChatRequest): ChatResponse {.llm_e
     var err = newException(LLMError, "HTTP " & $code & ": " & resp_body)
     err.status_code = code
     raise err
-  let j = parseJson(resp_body)
-  let choices = j["choices"]
-  if choices.len == 0:
+
+  let r = fromJson(resp_body, OAIResponse)
+  if r.choices.len == 0:
     raise newException(LLMError, "no choices in response")
-  let choice = choices[0]
-  let msg = choice["message"]
-  let usage = if j.hasKey("usage"): parse_usage(j["usage"]) else: Usage()
-  let finish = choice.getOrDefault("finish_reason").getStr("stop")
-  var content = msg["content"].getStr("")
-  if content.len == 0 and msg.hasKey("reasoning"):
-    content = msg["reasoning"].getStr("")
+  let ch = r.choices[0]
+  var content = ch.message.content
+  if content.len == 0 and ch.message.reasoning.len > 0:
+    content = ch.message.reasoning
+  let model_str = if r.model.len > 0: r.model else: req.model
+  let finish = if ch.finish_reason.len > 0: ch.finish_reason else: "stop"
   ChatResponse(
     content: content,
-    model: j.getOrDefault("model").getStr(req.model),
-    usage: usage,
+    model: model_str,
+    usage: Usage(
+      prompt_tokens: r.usage.prompt_tokens,
+      completion_tokens: r.usage.completion_tokens,
+      total_tokens: r.usage.total_tokens,
+    ),
     finish_reason: finish,
   )

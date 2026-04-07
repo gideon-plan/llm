@@ -1,8 +1,6 @@
 {.experimental: "strictFuncs".}
 ## LLM client facade -- vendor-neutral entry point.
 
-import std/json
-
 import basis/code/throw
 import basis/code/choice
 
@@ -13,7 +11,7 @@ import llm/provider/ollama
 
 standard_pragmas()
 
-raises_error(llm_err, [IOError, OSError, ValueError, JsonParsingError, LLMError, Exception],
+raises_error(llm_err, [IOError, OSError, ValueError, LLMError, Exception],
              [ReadIOEffect, WriteIOEffect, TimeEffect, RootEffect])
 
 #=======================================================================================================================

@@ -1,8 +1,6 @@
 {.experimental: "strictFuncs".}
 ## Common types for the LLM client.
 
-import std/json
-
 import basis/code/throw
 
 standard_pragmas()
@@ -34,7 +32,6 @@ type
     status_code*: int
 
   Role* = enum ## Chat message role.
-
     System = "system"
     User = "user"
     Assistant = "assistant"
@@ -95,49 +92,8 @@ proc chat_request*(model: string; messages: seq[Message];
   )
 
 #=======================================================================================================================
-#== JSON SERIALIZATION =================================================================================================
+#== ROLE SERIALIZATION =================================================================================================
 #=======================================================================================================================
-
-## Serialize a Message to JSON.
-proc to_json*(msg: Message): JsonNode {.ok.} =
-  %*{"role": $msg.role, "content": msg.content}
-
-## Serialize a ChatRequest to JSON.
-proc to_json*(req: ChatRequest): JsonNode {.ok.} =
-  var msgs = newJArray()
-  for m in req.messages:
-    msgs.add(m.to_json())
-  var j = %*{
-    "model": req.model,
-    "messages": msgs,
-    "temperature": req.temperature,
-    "max_tokens": req.max_tokens,
-  }
-  if req.top_p != 1.0:
-    j["top_p"] = %req.top_p
-  if req.stop.len > 0:
-    var stops = newJArray()
-    for s in req.stop:
-      stops.add(%s)
-    j["stop"] = stops
-  j
-
-## Serialize Usage to JSON.
-proc to_json*(usage: Usage): JsonNode {.ok.} =
-  %*{
-    "prompt_tokens": usage.prompt_tokens,
-    "completion_tokens": usage.completion_tokens,
-    "total_tokens": usage.total_tokens,
-  }
-
-## Serialize a ChatResponse to JSON.
-proc to_json*(resp: ChatResponse): JsonNode {.ok.} =
-  %*{
-    "content": resp.content,
-    "model": resp.model,
-    "usage": resp.usage.to_json(),
-    "finish_reason": resp.finish_reason,
-  }
 
 ## Parse a string into a Role enum value.
 proc parse_role*(s: string): Role {.llm_err.} =
@@ -147,17 +103,6 @@ proc parse_role*(s: string): Role {.llm_err.} =
   of "assistant": Assistant
   else: raise newException(ValueError, "unknown role: " & s)
 
-## Parse a JSON node into a Message.
-proc parse_message*(j: JsonNode): Message {.llm_err.} =
-  Message(
-    role: parse_role(j["role"].getStr()),
-    content: j["content"].getStr(),
-  )
-
-## Parse a JSON node into Usage statistics.
-proc parse_usage*(j: JsonNode): Usage {.ok.} =
-  Usage(
-    prompt_tokens: j.getOrDefault("prompt_tokens").getInt(0),
-    completion_tokens: j.getOrDefault("completion_tokens").getInt(0),
-    total_tokens: j.getOrDefault("total_tokens").getInt(0),
-  )
+proc enumHook*(s: string; v: var Role) {.raises: [IOError, ValueError].} =
+  ## jsony enum hook: deserialize Role from its string value.
+  v = parse_role(s)
