@@ -137,7 +137,7 @@ proc chat*(provider: AnthropicProvider; request: ChatRequest): ChatResponse {.ll
 
   let resp = cc.request(HttpRequest(
     url: url,
-    meth: hmPost,
+    meth: HttpMethod.Post,
     headers: headers,
     body: body,
     timeout: 120,

@@ -81,7 +81,7 @@ proc chat*(provider: OpenAIProvider; request: ChatRequest): ChatResponse {.llm_e
 
   let resp = cc.request(HttpRequest(
     url: url,
-    meth: hmPost,
+    meth: HttpMethod.Post,
     headers: headers,
     body: body,
     timeout: 120,
